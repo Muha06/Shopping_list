@@ -1,7 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
-import 'package:shopping_list/models/grocery.dart';
+import 'package:http/http.dart' as http;
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -16,21 +18,34 @@ class _NewItemState extends State<NewItem> {
   var enteredQuantity = 1;
   var _selectedCategory = categories[Categories.vegetables];
 
-  void saveItem() {
+  void saveItem() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      print(_enteredName);
-      print(enteredQuantity);
-      print(_selectedCategory!.title);
+      //creating a url of my db, will be used later
+      final url = Uri.https(
+        'shopping-list-aee6e-default-rtdb.firebaseio.com',
+        'shopping-list.json', //a folder/collection in our db
+      );
+      //add new data
+      final response = await http.post(
+        url, //the db url
+        //telling firebase that the data is written in json
+        headers: {'content-type': 'application/json'},
+        //the actual message
+        body: json.encode({
+          'name': _enteredName,
+          "category": _selectedCategory!.title,
+          "quantity": enteredQuantity,
+        }),
+      );
+      print(response.statusCode);
+      print(response.body);
+      Navigator.pop(context);
     }
-    Navigator.of(context).pop(
-      GroceryItem(
-        id: DateTime.now().toString(),
-        name: _enteredName,
-        quantity: enteredQuantity,
-        category: _selectedCategory!,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('uploaded item')));
+    Navigator.of(context).pop();
   }
 
   @override
