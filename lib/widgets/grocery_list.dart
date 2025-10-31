@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/grocery.dart';
 import 'package:shopping_list/widgets/new_item.dart';
-
+import 'package:http/http.dart' as http;
 
 class GroceryList extends StatefulWidget {
   const GroceryList({super.key});
@@ -11,29 +14,53 @@ class GroceryList extends StatefulWidget {
 }
 
 class _GroceryListState extends State<GroceryList> {
-  final List<GroceryItem> _groceryItems = [];
+  List<GroceryItem> _groceryItems = [];
 
   void addItem() async {
-    final addedItem = await Navigator.of(context).push<GroceryItem>(
+    await Navigator.of(context).push<GroceryItem>(
       MaterialPageRoute(
         builder: (ctx) {
           return const NewItem();
         },
       ),
     );
+  }
 
-    //specify what to be done if addedItem == null
-    if (addedItem == null) {
-      return;
+  void _getItems() async {
+    final url = Uri.https(
+      'shopping-list-aee6e-default-rtdb.firebaseio.com',
+      'shopping-list.json', //a folder/collection in our db
+    );
+    final response = await http.get(url);
+    //decoding all grocery item in the db
+    //listData = response => all groceryItems in the db
+    final Map<String, dynamic> listData = json.decode(response.body);
+    final List<GroceryItem> temporaryItems = [];
+    for (final item in listData.entries) {
+      //finding category matching to the one from our db
+      final category = categories.values.firstWhere((element) {
+        return element.title == item.value['category'];
+      });
+      //add every groceryItem from db to a temporary list
+      temporaryItems.add(
+        GroceryItem(
+          id: item.key,
+          name: item.value['name'],
+          quantity: item.value['quantity'],
+          category: category,
+        ),
+      );
     }
-
+    //reassigning oldlist to new so we ui rebuilds
     setState(() {
-      _groceryItems.add(addedItem);
+      _groceryItems = temporaryItems;
     });
   }
 
-  void _removeItem(GroceryItem item) {
-    _groceryItems.remove(item);
+  @override
+  void initState() {
+    _getItems();
+    super.initState();
   }
 
   @override
@@ -56,7 +83,6 @@ class _GroceryListState extends State<GroceryList> {
             ),
           ),
           onDismissed: (direction) {
-            _removeItem(_groceryItems[index]);
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(const SnackBar(content: Text('Item deleted')));

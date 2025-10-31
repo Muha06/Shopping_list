@@ -27,7 +27,7 @@ class _NewItemState extends State<NewItem> {
         'shopping-list.json', //a folder/collection in our db
       );
       //add new data
-      final response = await http.post(
+      await http.post(
         url, //the db url
         //telling firebase that the data is written in json
         headers: {'content-type': 'application/json'},
@@ -38,14 +38,15 @@ class _NewItemState extends State<NewItem> {
           "quantity": enteredQuantity,
         }),
       );
-      print(response.statusCode);
-      print(response.body);
-      Navigator.pop(context);
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('uploaded item')));
+      Navigator.of(context).pop();
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('uploaded item')));
-    Navigator.of(context).pop();
   }
 
   @override
