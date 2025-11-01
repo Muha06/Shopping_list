@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
 import 'package:http/http.dart' as http;
+import 'package:shopping_list/models/grocery.dart';
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -17,17 +18,22 @@ class _NewItemState extends State<NewItem> {
   String _enteredName = '';
   var enteredQuantity = 1;
   var _selectedCategory = categories[Categories.vegetables];
+  bool isSending = false;
 
   void saveItem() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        isSending = true;
+      });
       _formKey.currentState!.save();
       //creating a url of my db, will be used later
+
       final url = Uri.https(
         'shopping-list-aee6e-default-rtdb.firebaseio.com',
         'shopping-list.json', //a folder/collection in our db
       );
       //add new data
-      await http.post(
+      final response = await http.post(
         url, //the db url
         //telling firebase that the data is written in json
         headers: {'content-type': 'application/json'},
@@ -41,11 +47,18 @@ class _NewItemState extends State<NewItem> {
       if (!context.mounted) {
         return;
       }
+      final Map<String, dynamic> resData = json.decode(response.body);
+      final item = GroceryItem(
+        id: resData['name'],
+        name: _enteredName,
+        quantity: enteredQuantity,
+        category: _selectedCategory!,
+      );
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('uploaded item')));
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(item);
     }
   }
 
@@ -57,8 +70,6 @@ class _NewItemState extends State<NewItem> {
         padding: const EdgeInsets.all(10),
         child: Form(
           key: _formKey,
-          //autovalidateMode: AutovalidateMode.onUserInteraction,
-          onChanged: () {},
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -143,14 +154,22 @@ class _NewItemState extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      _formKey.currentState!.reset();
-                    },
+                    onPressed: isSending
+                        ? null
+                        : () {
+                            _formKey.currentState!.reset();
+                          },
                     child: const Text('Reset'),
                   ),
                   ElevatedButton(
-                    onPressed: saveItem,
-                    child: const Text('Add item'),
+                    onPressed: isSending ? null : saveItem,
+                    child: isSending
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(),
+                          )
+                        : const Text('Add item'),
                   ),
                 ],
               ),
